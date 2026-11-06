@@ -112,25 +112,33 @@
                 }
 
                 // Render the cards
-                repos.forEach(repo => {
-                    const card = document.createElement('div');
-                    card.className = 'tool-card';
-                    card.innerHTML = `
-                        <div class="tool-header">
-                            <img src="${repo.avatar}" alt="Avatar">
-                            <div>
-                                <div class="tool-title">${repo.name}</div>
-                                <div class="tool-owner">@${repo.owner}</div>
-                            </div>
-                        </div>
-                        <div class="tool-desc">${repo.description}</div>
-                        <div class="tool-footer">
-                            <div class="tool-stats">⭐ ${repo.stars.toLocaleString()}</div>
-                            <a href="${repo.url}" target="_blank" class="github-link">View Repo ↗</a>
-                        </div>
-                    `;
-                    grid.appendChild(card);
-                });
+// Render the cards
+repos.forEach(repo => {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+        <div class="tool-header">
+            <img src="${repo.avatar}" alt="Avatar">
+            <div>
+                <div class="tool-title">${repo.name}</div>
+                <div class="tool-owner">@${repo.owner}</div>
+            </div>
+        </div>
+        <div class="tool-desc">${repo.description}</div>
+        
+        <!-- THE AI SCORE BOX -->
+        <div style="background: rgba(138, 43, 226, 0.1); border-left: 3px solid var(--accent); padding: 10px; margin-bottom: 15px; font-size: 0.85rem;">
+            <strong style="color: var(--accent);">🤖 AI Score: ${repo.ai_score}/100</strong><br>
+            <span style="color: #ccc;">${repo.ai_reason}</span>
+        </div>
+
+        <div class="tool-footer">
+            <div class="tool-stats">⭐ ${repo.stars.toLocaleString()}</div>
+            <a href="${repo.url}" target="_blank" class="github-link">View Repo ↗</a>
+        </div>
+    `;
+    grid.appendChild(card);
+});
                 
             } catch (err) {
                 loader.style.display = 'none';
