@@ -140,10 +140,14 @@ repos.forEach(repo => {
     grid.appendChild(card);
 });
                 
-            } catch (err) {
-                loader.style.display = 'none';
-                grid.innerHTML = '<p style="color:red; text-align:center; width:100%;">Failed to connect to GitHub. Are you running this locally without Netlify Dev?</p>';
-            }
+} catch (err) {
+    loader.style.display = 'none';
+    // THIS WILL SHOW THE REAL ERROR
+    grid.innerHTML = `<p style="color:#ff4444; text-align:center; width:100%; font-family: 'JetBrains Mono', monospace;">
+        BACKEND ERROR:<br><br>
+        ${err.message}<br><br>
+        <span style="color: #fff;">Check your Netlify Deploy Logs (Functions tab) to see what broke.</span>
+    </p>`;
         }
     </script>
 
