@@ -14,11 +14,7 @@
             --accent: #8a2be2;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background-color: var(--bg);
-            color: var(--text-main);
-            font-family: 'Inter', sans-serif;
-        }
+        body { background-color: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; }
         header { text-align: center; padding: 6rem 2rem 3rem; }
         header h1 { font-size: 3.5rem; font-weight: 800; letter-spacing: -2px; margin-bottom: 1rem; }
         header h1 span { color: var(--accent); }
@@ -59,9 +55,7 @@
             border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem; font-size: 0.85rem;
         }
         .tool-stats { color: #f1c40f; font-weight: bold; }
-        .github-link {
-            color: var(--accent); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-weight: bold;
-        }
+        .github-link { color: var(--accent); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-weight: bold; }
         .github-link:hover { text-decoration: underline; }
         
         .loader { text-align: center; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-top: 2rem; display: none; }
@@ -83,7 +77,6 @@
     <div class="grid-container" id="toolGrid"></div>
 
     <script>
-        // Initial load
         window.onload = () => searchGitHub();
 
         function handleKeyPress(e) {
@@ -91,65 +84,65 @@
         }
 
         async function searchGitHub() {
-            const query = document.getElementById('searchInput').value || "open source";
+            const query = document.getElementById('searchInput').value || "python";
             const grid = document.getElementById('toolGrid');
             const loader = document.getElementById('loader');
             
-            // Show loading state
             grid.innerHTML = '';
             loader.style.display = 'block';
 
             try {
-                // Call our Netlify Serverless Function
                 const res = await fetch(`/.netlify/functions/search?q=${encodeURIComponent(query)}`);
-                const repos = await res.json();
                 
+                // THIS IS THE FIX: Check if the backend crashed
+                if (!res.ok) {
+                    throw new Error("Backend crashed. Check your Netlify Function logs.");
+                }
+                
+                const repos = await res.json();
                 loader.style.display = 'none';
 
-                if (repos.length === 0) {
-                    grid.innerHTML = '<p style="text-align:center; width:100%;">No repositories found.</p>';
+                if (!Array.isArray(repos) || repos.length === 0) {
+                    grid.innerHTML = '<p style="text-align:center; width:100%; color: #fff;">No repositories found or API rate limited.</p>';
                     return;
                 }
 
-                // Render the cards
-// Render the cards
-repos.forEach(repo => {
-    const card = document.createElement('div');
-    card.className = 'tool-card';
-    card.innerHTML = `
-        <div class="tool-header">
-            <img src="${repo.avatar}" alt="Avatar">
-            <div>
-                <div class="tool-title">${repo.name}</div>
-                <div class="tool-owner">@${repo.owner}</div>
-            </div>
-        </div>
-        <div class="tool-desc">${repo.description}</div>
-        
-        <!-- THE AI SCORE BOX -->
-        <div style="background: rgba(138, 43, 226, 0.1); border-left: 3px solid var(--accent); padding: 10px; margin-bottom: 15px; font-size: 0.85rem;">
-            <strong style="color: var(--accent);">🤖 AI Score: ${repo.ai_score}/100</strong><br>
-            <span style="color: #ccc;">${repo.ai_reason}</span>
-        </div>
+                repos.forEach(repo => {
+                    const card = document.createElement('div');
+                    card.className = 'tool-card';
+                    card.innerHTML = `
+                        <div class="tool-header">
+                            <img src="${repo.avatar}" alt="Avatar">
+                            <div>
+                                <div class="tool-title">${repo.name}</div>
+                                <div class="tool-owner">@${repo.owner}</div>
+                            </div>
+                        </div>
+                        <div class="tool-desc">${repo.description}</div>
+                        
+                        <div style="background: rgba(138, 43, 226, 0.1); border-left: 3px solid var(--accent); padding: 10px; margin-bottom: 15px; font-size: 0.85rem;">
+                            <strong style="color: var(--accent);">🤖 AI Score: ${repo.ai_score}/100</strong><br>
+                            <span style="color: #ccc;">${repo.ai_reason}</span>
+                        </div>
 
-        <div class="tool-footer">
-            <div class="tool-stats">⭐ ${repo.stars.toLocaleString()}</div>
-            <a href="${repo.url}" target="_blank" class="github-link">View Repo ↗</a>
-        </div>
-    `;
-    grid.appendChild(card);
-});
+                        <div class="tool-footer">
+                            <div class="tool-stats">⭐ ${repo.stars.toLocaleString()}</div>
+                            <a href="${repo.url}" target="_blank" class="github-link">View Repo ↗</a>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
                 
-} catch (err) {
-    loader.style.display = 'none';
-    // THIS WILL SHOW THE REAL ERROR
-    grid.innerHTML = `<p style="color:#ff4444; text-align:center; width:100%; font-family: 'JetBrains Mono', monospace;">
-        BACKEND ERROR:<br><br>
-        ${err.message}<br><br>
-        <span style="color: #fff;">Check your Netlify Deploy Logs (Functions tab) to see what broke.</span>
-    </p>`;
+            } catch (err) {
+                loader.style.display = 'none';
+                grid.innerHTML = `
+                    <div style="text-align:center; width:100%; padding: 2rem; background: rgba(255,0,0,0.1); border: 1px solid red; border-radius: 8px;">
+                        <h2 style="color: #ff4444; margin-bottom: 1rem;">SYSTEM ERROR</h2>
+                        <p style="color: #fff; font-family: 'JetBrains Mono', monospace;">${err.message}</p>
+                    </div>
+                `;
+            }
         }
     </script>
-
 </body>
-      </html>
+</html>
