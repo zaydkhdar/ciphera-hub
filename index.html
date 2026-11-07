@@ -92,57 +92,65 @@
             loader.style.display = 'block';
 
             try {
-                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-                
-                // THIS IS THE FIX: Check if the backend crashed
-                if (!res.ok) {
-                    throw new Error("Backend crashed. Check your Netlify Function logs.");
-                }
-                
-                const repos = await res.json();
-                loader.style.display = 'none';
+    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    
+    // Read the response as text first to catch Vercel HTML error pages
+    const text = await res.text();
+    let data;
+    
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        throw new Error(`Vercel returned a crash page: ${text.substring(0, 50)}...`);
+    }
 
-                if (!Array.isArray(repos) || repos.length === 0) {
-                    grid.innerHTML = '<p style="text-align:center; width:100%; color: #fff;">No repositories found or API rate limited.</p>';
-                    return;
-                }
+    if (!res.ok) {
+        throw new Error(data.error || "Unknown backend error");
+    }
 
-                repos.forEach(repo => {
-                    const card = document.createElement('div');
-                    card.className = 'tool-card';
-                    card.innerHTML = `
-                        <div class="tool-header">
-                            <img src="${repo.avatar}" alt="Avatar">
-                            <div>
-                                <div class="tool-title">${repo.name}</div>
-                                <div class="tool-owner">@${repo.owner}</div>
-                            </div>
-                        </div>
-                        <div class="tool-desc">${repo.description}</div>
-                        
-                        <div style="background: rgba(138, 43, 226, 0.1); border-left: 3px solid var(--accent); padding: 10px; margin-bottom: 15px; font-size: 0.85rem;">
-                            <strong style="color: var(--accent);">🤖 AI Score: ${repo.ai_score}/100</strong><br>
-                            <span style="color: #ccc;">${repo.ai_reason}</span>
-                        </div>
+    const repos = data;
+    loader.style.display = 'none';
 
-                        <div class="tool-footer">
-                            <div class="tool-stats">⭐ ${repo.stars.toLocaleString()}</div>
-                            <a href="${repo.url}" target="_blank" class="github-link">View Repo ↗</a>
-                        </div>
-                    `;
-                    grid.appendChild(card);
-                });
-                
-            } catch (err) {
-                loader.style.display = 'none';
-                grid.innerHTML = `
-                    <div style="text-align:center; width:100%; padding: 2rem; background: rgba(255,0,0,0.1); border: 1px solid red; border-radius: 8px;">
-                        <h2 style="color: #ff4444; margin-bottom: 1rem;">SYSTEM ERROR</h2>
-                        <p style="color: #fff; font-family: 'JetBrains Mono', monospace;">${err.message}</p>
-                    </div>
-                `;
-            }
-        }
+    if (!Array.isArray(repos) || repos.length === 0) {
+        grid.innerHTML = '<p style="text-align:center; width:100%; color: #fff;">No repositories found or API rate limited.</p>';
+        return;
+    }
+
+    repos.forEach(repo => {
+        const card = document.createElement('div');
+        card.className = 'tool-card';
+        card.innerHTML = `
+            <div class="tool-header">
+                <img src="${repo.avatar}" alt="Avatar">
+                <div>
+                    <div class="tool-title">${repo.name}</div>
+                    <div class="tool-owner">@${repo.owner}</div>
+                </div>
+            </div>
+            <div class="tool-desc">${repo.description}</div>
+            
+            <div style="background: rgba(138, 43, 226, 0.1); border-left: 3px solid var(--accent); padding: 10px; margin-bottom: 15px; font-size: 0.85rem;">
+                <strong style="color: var(--accent);">🤖 AI Score: ${repo.ai_score}/100</strong><br>
+                <span style="color: #ccc;">${repo.ai_reason}</span>
+            </div>
+
+            <div class="tool-footer">
+                <div class="tool-stats">⭐ ${repo.stars.toLocaleString()}</div>
+                <a href="${repo.url}" target="_blank" class="github-link">View Repo ↗</a>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+    
+} catch (err) {
+    loader.style.display = 'none';
+    grid.innerHTML = `
+        <div style="text-align:center; width:100%; padding: 2rem; background: rgba(255,0,0,0.1); border: 1px solid red; border-radius: 8px;">
+            <h2 style="color: #ff4444; margin-bottom: 1rem;">SYSTEM ERROR</h2>
+            <p style="color: #fff; font-family: 'JetBrains Mono', monospace;">${err.message}</p>
+        </div>
+    `;
+}
     </script>
 </body>
 </html>
