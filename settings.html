@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ciphera Settings</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#090812;color:#f5f2ff;font-family:system-ui,Arial}
+header{padding:20px 6%;border-bottom:1px solid #29243a}
+main{max-width:750px;margin:auto;padding:35px 20px}
+.panel{background:#131120;border:1px solid #29243a;border-radius:15px;
+padding:20px;margin:17px 0}
+label{display:block;color:#aaa2bb;margin:15px 0 7px}
+select{width:100%;padding:12px;background:#1b172b;color:white;
+border:1px solid #393149;border-radius:9px}
+button{background:#a78bfa;color:#160f25;border:0;border-radius:9px;
+padding:12px 17px;font-weight:800;margin-top:18px}
+small{color:#aaa2bb;line-height:1.7}
+a{color:#c4b5fd}
+</style>
+</head>
+<body>
+<header><a href="/" style="color:white;text-decoration:none;font-weight:900">ciphera.</a></header>
+<main>
+<h1>Settings</h1>
+<p style="color:#aaa2bb">Customize your Ciphera experience.</p>
+
+<section class="panel">
+<h2>Discovery preferences</h2>
+<label for="source">Default search source</label>
+<select id="source">
+<option value="all">All sources</option>
+<option value="GitHub">GitHub</option>
+<option value="Hacker News">Hacker News</option>
+</select>
+
+<label for="sort">Default sorting</label>
+<select id="sort">
+<option value="score">Popularity</option>
+<option value="stars">Most stars</option>
+<option value="newest">Recently updated</option>
+</select>
+
+<button id="save">Save preferences</button>
+<p id="status" style="color:#74e0ae"></p>
+</section>
+
+<section class="panel">
+<h2>AI configuration</h2>
+<p><strong>Provider:</strong> NVIDIA NIM</p>
+<p><strong>Model:</strong> nvidia/nemotron-3.5-lightning-30b-a3b</p>
+<p><strong>API route:</strong> /api/ai</p>
+<small>
+Your AI provider and model are controlled by Vercel environment
+variables. This prevents visitors from changing the server's AI
+configuration or accessing your secret key.
+</small>
+</section>
+
+<section class="panel">
+<h2>Privacy and security</h2>
+<p>Browser preferences are stored locally on this device.</p>
+<p>API credentials are stored on the server, never in local storage.</p>
+<button id="reset" style="background:#39283a;color:#fff">Reset preferences</button>
+</section>
+</main>
+
+<script>
+const source=document.getElementById("source");
+const sort=document.getElementById("sort");
+const status=document.getElementById("status");
+
+const defaults={source:"all",sort:"score"};
+
+function load(){
+  let prefs={};
+  try{prefs=JSON.parse(localStorage.getItem("ciphera_preferences")||"{}")}
+  catch{}
+  source.value=prefs.source||defaults.source;
+  sort.value=prefs.sort||defaults.sort;
+}
+
+document.getElementById("save").addEventListener("click",()=>{
+  localStorage.setItem("ciphera_preferences",JSON.stringify({
+    source:source.value,
+    sort:sort.value
+  }));
+  status.textContent="Preferences saved on this device.";
+});
+
+document.getElementById("reset").addEventListener("click",()=>{
+  localStorage.removeItem("ciphera_preferences");
+  load();
+  status.textContent="Preferences reset.";
+});
+
+load();
+</script>
+</body>
+</html>
