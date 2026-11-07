@@ -3,19 +3,17 @@
 const cache = {};
 const CACHE_DURATION = 5 * 60 * 1000; 
 
+// Updated exact model names for NVIDIA
 const MODELS = [
-    "meta/llama3-70b-instruct",                 
+    "meta/llama-3-70b-instruct",                 
     "mistralai/mixtral-8x7b-instruct-v0.1",     
-    "meta/llama3-8b-instruct"                            
+    "meta/llama-3-8b-instruct"                            
 ];
 
 const FALLBACK_REASONS = [
     "Production-ready architecture and stability.",
     "High code maintainability and test coverage.",
-    "Robust community backing and frequent updates.",
-    "Excellent documentation and developer experience.",
-    "Scalable design for enterprise workflows.",
-    "Optimized performance with minimal overhead."
+    "Robust community backing and frequent updates."
 ];
 
 async function queryNvidia(repo, model, apiKey) {
@@ -49,27 +47,30 @@ async function queryNvidia(repo, model, apiKey) {
 }
 
 export default async function handler(req, res) {
-    // Vercel puts query params in req.query
     const query = req.query.q || "python";
+    
+    // Set CORS headers just in case
+    res.setHeader('Access-Control-Allow-Origin', '*');
     
     if (cache[query] && (Date.now() - cache[query].timestamp < CACHE_DURATION)) {
         return res.status(200).json(cache[query].data);
     }
     
-    // --- PASTE YOUR NVIDIA API KEY HERE ---
+    // YOUR API KEY IS INJECTED HERE
     const NVIDIA_API_KEY = "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"; 
-    
-    if (NVIDIA_API_KEY === "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") {
-        return res.status(500).json({ error: "Paste your NVIDIA API key in api/search.js!" });
-    }
     
     try {
         const searchQuery = `${query} in:name,description,readme`;
-        const response = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(searchQuery)}&sort=stars&order=desc&per_page=15`, {
+        const response = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(searchQuery)}&sort=stars&order=desc&per_page=10`, {
             headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'Ciphera-Hub' }
         });
         
         const data = await response.json();
+        
+        if (!data.items) {
+            throw new Error("GitHub API rate limit or error.");
+        }
+
         let repos = data.items.map(repo => ({
             name: repo.name,
             owner: repo.owner.login,
@@ -83,7 +84,8 @@ export default async function handler(req, res) {
         }));
 
         if (repos.length > 0) {
-            for (let i = 0; i < Math.min(5, repos.length); i++) {
+            // Only scan top 3 to avoid timeout
+            for (let i = 0; i < Math.min(3, repos.length); i++) {
                 const repo = repos[i];
                 let aiResult = null;
                 
@@ -107,7 +109,7 @@ export default async function handler(req, res) {
                 repo.ai_reason = aiResult.reason;
             }
             
-            for (let i = 5; i < repos.length; i++) {
+            for (let i = 3; i < repos.length; i++) {
                 repos[i].ai_score = 80;
                 repos[i].ai_reason = FALLBACK_REASONS[Math.floor(Math.random() * FALLBACK_REASONS.length)];
             }
@@ -118,6 +120,7 @@ export default async function handler(req, res) {
         cache[query] = { data: repos, timestamp: Date.now() };
         return res.status(200).json(repos);
     } catch (error) {
+        console.error(error);
         return res.status(500).json({ error: error.message });
     }
-}
+                            }
