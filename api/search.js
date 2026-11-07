@@ -57,9 +57,9 @@ export default async function handler(req, res) {
     }
     
     // --- PASTE YOUR NVIDIA API KEY HERE ---
-    const NVIDIA_API_KEY = "nvapi-PASTE_YOUR_KEY_HERE"; 
+    const NVIDIA_API_KEY = "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"; 
     
-    if (NVIDIA_API_KEY === "nvapi-PASTE_YOUR_KEY_HERE") {
+    if (NVIDIA_API_KEY === "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") {
         return res.status(500).json({ error: "Paste your NVIDIA API key in api/search.js!" });
     }
     
