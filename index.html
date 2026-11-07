@@ -7,11 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #08080a;
-            --surface: #111115;
-            --text-main: #ffffff;
-            --text-muted: #8b8b93;
-            --accent: #8a2be2;
+            --bg: #08080a; --surface: #111115; --text-main: #ffffff;
+            --text-muted: #8b8b93; --accent: #8a2be2;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background-color: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; }
@@ -50,6 +47,13 @@
         
         .tool-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; flex-grow: 1; }
         
+        .score-box {
+            background: rgba(138, 43, 226, 0.1); border-left: 3px solid var(--accent); 
+            padding: 12px; margin-bottom: 15px; font-size: 0.85rem; border-radius: 0 8px 8px 0;
+        }
+        .score-bar-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .score-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+
         .tool-footer {
             display: flex; justify-content: space-between; align-items: center;
             border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem; font-size: 0.85rem;
@@ -65,23 +69,21 @@
 
     <header>
         <h1>Ciphera <span>Hub</span></h1>
-        <p>A live, curated collection of the best open-source tools on GitHub.</p>
+        <p>The Heat Index algorithm finds the most active and useful open-source tools.</p>
         
         <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Search tools (e.g., discord bot, scraper, python)..." onkeypress="handleKeyPress(event)">
+            <input type="text" id="searchInput" placeholder="Search tools (e.g., discord bot)..." onkeypress="handleKeyPress(event)">
             <button onclick="searchGitHub()">Search</button>
         </div>
     </header>
 
-    <div class="loader" id="loader">Connecting to GitHub API...</div>
+    <div class="loader" id="loader">Analyzing GitHub Data...</div>
     <div class="grid-container" id="toolGrid"></div>
 
     <script>
         window.onload = () => searchGitHub();
 
-        function handleKeyPress(e) {
-            if (e.key === 'Enter') searchGitHub();
-        }
+        function handleKeyPress(e) { if (e.key === 'Enter') searchGitHub(); }
 
         async function searchGitHub() {
             const query = document.getElementById('searchInput').value || "python";
@@ -92,65 +94,54 @@
             loader.style.display = 'block';
 
             try {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-    
-    // Read the response as text first to catch Vercel HTML error pages
-    const text = await res.text();
-    let data;
-    
-    try {
-        data = JSON.parse(text);
-    } catch (e) {
-        throw new Error(`Vercel returned a crash page: ${text.substring(0, 50)}...`);
-    }
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                
+                loader.style.display = 'none';
 
-    if (!res.ok) {
-        throw new Error(data.error || "Unknown backend error");
-    }
+                if (!res.ok) throw new Error(data.error || "Failed to load");
+                if (data.length === 0) throw new Error("No repositories found.");
 
-    const repos = data;
-    loader.style.display = 'none';
+                data.forEach(repo => {
+                    const card = document.createElement('div');
+                    card.className = 'tool-card';
+                    card.innerHTML = `
+                        <div class="tool-header">
+                            <img src="${repo.avatar}" alt="Avatar">
+                            <div>
+                                <div class="tool-title">${repo.name}</div>
+                                <div class="tool-owner">@${repo.owner}</div>
+                            </div>
+                        </div>
+                        <div class="tool-desc">${repo.description}</div>
+                        
+                        <div class="score-box">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong style="color: var(--accent);">🔥 Heat Index: ${repo.ai_score}/100</strong>
+                            </div>
+                            <div class="score-bar-bg">
+                                <div class="score-bar-fill" style="width: ${repo.ai_score}%;"></div>
+                            </div>
+                            <span style="color: #ccc; display:block; margin-top:8px;">${repo.ai_reason}</span>
+                        </div>
 
-    if (!Array.isArray(repos) || repos.length === 0) {
-        grid.innerHTML = '<p style="text-align:center; width:100%; color: #fff;">No repositories found or API rate limited.</p>';
-        return;
-    }
-
-    repos.forEach(repo => {
-        const card = document.createElement('div');
-        card.className = 'tool-card';
-        card.innerHTML = `
-            <div class="tool-header">
-                <img src="${repo.avatar}" alt="Avatar">
-                <div>
-                    <div class="tool-title">${repo.name}</div>
-                    <div class="tool-owner">@${repo.owner}</div>
-                </div>
-            </div>
-            <div class="tool-desc">${repo.description}</div>
-            
-            <div style="background: rgba(138, 43, 226, 0.1); border-left: 3px solid var(--accent); padding: 10px; margin-bottom: 15px; font-size: 0.85rem;">
-                <strong style="color: var(--accent);">🤖 AI Score: ${repo.ai_score}/100</strong><br>
-                <span style="color: #ccc;">${repo.ai_reason}</span>
-            </div>
-
-            <div class="tool-footer">
-                <div class="tool-stats">⭐ ${repo.stars.toLocaleString()}</div>
-                <a href="${repo.url}" target="_blank" class="github-link">View Repo ↗</a>
-            </div>
-        `;
-        grid.appendChild(card);
-    });
-    
-} catch (err) {
-    loader.style.display = 'none';
-    grid.innerHTML = `
-        <div style="text-align:center; width:100%; padding: 2rem; background: rgba(255,0,0,0.1); border: 1px solid red; border-radius: 8px;">
-            <h2 style="color: #ff4444; margin-bottom: 1rem;">SYSTEM ERROR</h2>
-            <p style="color: #fff; font-family: 'JetBrains Mono', monospace;">${err.message}</p>
-        </div>
-    `;
-    console.error("Fetch Error:", err);
+                        <div class="tool-footer">
+                            <div class="tool-stats">⭐ ${repo.stars.toLocaleString()}</div>
+                            <a href="${repo.url}" target="_blank" class="github-link">View Repo ↗</a>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+                
+            } catch (err) {
+                loader.style.display = 'none';
+                grid.innerHTML = `
+                    <div style="text-align:center; width:100%; padding: 2rem; background: rgba(255,0,0,0.1); border: 1px solid red; border-radius: 8px;">
+                        <h2 style="color: #ff4444; margin-bottom: 1rem;">SYSTEM ERROR</h2>
+                        <p style="color: #fff; font-family: 'JetBrains Mono', monospace;">${err.message}</p>
+                    </div>
+                `;
+            }
         }
     </script>
 </body>
