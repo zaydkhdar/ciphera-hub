@@ -111,6 +111,17 @@ footer{text-align:center;color:var(--muted);padding:35px;font-size:12px}
 const $ = id => document.getElementById(id);
 let currentResults = [];
 
+  try {
+  const prefs = JSON.parse(
+    localStorage.getItem("ciphera_preferences") || "{}"
+  );
+  if (["all","GitHub","Hacker News"].includes(prefs.source)) {
+    $("source").value = prefs.source;
+  }
+  if (["score","stars","newest"].includes(prefs.sort)) {
+    $("sort").value = prefs.sort;
+  }
+} catch {}
 function make(tag, className, value) {
   const el = document.createElement(tag);
   if (className) el.className = className;
