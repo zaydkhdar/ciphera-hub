@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ciphera | Open Source Hub</title>
+    <title>Ciphera | Open Source Aggregator</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -37,15 +37,29 @@
         .tool-card {
             background: var(--surface); border: 1px solid rgba(255,255,255,0.05);
             border-radius: 12px; padding: 1.5rem; transition: transform 0.3s, border-color 0.3s;
-            display: flex; flex-direction: column;
+            display: flex; flex-direction: column; position: relative;
         }
         .tool-card:hover { transform: translateY(-5px); border-color: var(--accent); }
-        .tool-header { display: flex; gap: 10px; align-items: center; margin-bottom: 1rem; }
-        .tool-header img { width: 30px; height: 30px; border-radius: 50%; }
-        .tool-title { font-size: 1.2rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        
+        .source-badge {
+            position: absolute; top: -10px; right: 15px;
+            background: var(--surface); border: 1px solid var(--accent); color: var(--accent);
+            padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .tool-header { display: flex; gap: 10px; align-items: center; margin-bottom: 0.5rem; margin-top: 5px; }
+        .tool-header img { width: 36px; height: 36px; border-radius: 50%; }
+        .tool-title { font-size: 1.2rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; line-height: 1.2; }
         .tool-owner { font-size: 0.8rem; color: var(--text-muted); }
         
-        .tool-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; flex-grow: 1; }
+        .tool-meta {
+            display: flex; gap: 10px; font-size: 0.75rem; color: #aaa; margin-bottom: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .meta-tag { background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); }
+
+        .tool-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; flex-grow: 1; line-height: 1.4; }
         
         .score-box {
             background: rgba(138, 43, 226, 0.1); border-left: 3px solid var(--accent); 
@@ -68,24 +82,24 @@
 <body>
 
     <header>
-        <h1>Ciphera <span>Hub</span></h1>
-        <p>The Heat Index algorithm finds the most active and useful open-source tools.</p>
+        <h1>Ciphera <span>Aggregator</span></h1>
+        <p>Live data from GitHub, Hacker News, and Reddit. Ranked by the Heat Index.</p>
         
         <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Search tools (e.g., discord bot)..." onkeypress="handleKeyPress(event)">
-            <button onclick="searchGitHub()">Search</button>
+            <input type="text" id="searchInput" placeholder="Search tools, languages, or topics..." onkeypress="handleKeyPress(event)">
+            <button onclick="searchAll()">Search</button>
         </div>
     </header>
 
-    <div class="loader" id="loader">Analyzing GitHub Data...</div>
+    <div class="loader" id="loader">Scanning Networks...</div>
     <div class="grid-container" id="toolGrid"></div>
 
     <script>
-        window.onload = () => searchGitHub();
+        window.onload = () => searchAll();
 
-        function handleKeyPress(e) { if (e.key === 'Enter') searchGitHub(); }
+        function handleKeyPress(e) { if (e.key === 'Enter') searchAll(); }
 
-        async function searchGitHub() {
+        async function searchAll() {
             const query = document.getElementById('searchInput').value || "python";
             const grid = document.getElementById('toolGrid');
             const loader = document.getElementById('loader');
@@ -100,12 +114,13 @@
                 loader.style.display = 'none';
 
                 if (!res.ok) throw new Error(data.error || "Failed to load");
-                if (data.length === 0) throw new Error("No repositories found.");
+                if (data.length === 0) throw new Error("No results found across networks.");
 
                 data.forEach(repo => {
                     const card = document.createElement('div');
                     card.className = 'tool-card';
                     card.innerHTML = `
+                        <div class="source-badge">${repo.source}</div>
                         <div class="tool-header">
                             <img src="${repo.avatar}" alt="Avatar">
                             <div>
@@ -113,6 +128,12 @@
                                 <div class="tool-owner">@${repo.owner}</div>
                             </div>
                         </div>
+                        
+                        <div class="tool-meta">
+                            <span class="meta-tag">${repo.meta1}</span>
+                            <span class="meta-tag">${repo.meta2}</span>
+                        </div>
+
                         <div class="tool-desc">${repo.description}</div>
                         
                         <div class="score-box">
@@ -127,7 +148,7 @@
 
                         <div class="tool-footer">
                             <div class="tool-stats">⭐ ${repo.stars.toLocaleString()}</div>
-                            <a href="${repo.url}" target="_blank" class="github-link">View Repo ↗</a>
+                            <a href="${repo.url}" target="_blank" class="github-link">View Source ↗</a>
                         </div>
                     `;
                     grid.appendChild(card);
