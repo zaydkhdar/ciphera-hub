@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ciphera Workspace</title>
+<style>
+body{margin:0;background:#090812;color:#f5f2ff;font-family:system-ui,Arial}
+header{padding:20px 6%;border-bottom:1px solid #29243a}
+main{max-width:950px;margin:auto;padding:35px 20px}
+.panel{background:#131120;border:1px solid #29243a;border-radius:16px;
+padding:20px;margin:18px 0}
+h1{overflow-wrap:anywhere}
+p{color:#aaa2bb}
+button{background:#a78bfa;color:#160f25;border:0;padding:12px 17px;
+border-radius:10px;font-weight:800}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;
+color:#ddd5ec;font-family:ui-monospace,monospace;font-size:13px}
+#analysis{white-space:pre-wrap;line-height:1.7}
+a{color:#c4b5fd}
+</style>
+</head>
+<body>
+<header><a href="/" style="color:white;text-decoration:none;font-weight:900">ciphera.</a></header>
+<main>
+  <p><a href="/">← Back to discovery</a></p>
+  <h1 id="title">Loading repository…</h1>
+  <p id="description"></p>
+
+  <section class="panel">
+    <h2>Repository intelligence</h2>
+    <button id="analyze">✦ Analyze with Ciphera AI</button>
+    <div id="analysis" style="margin-top:18px"></div>
+  </section>
+
+  <section class="panel">
+    <h2>README</h2>
+    <pre id="readme">Loading README…</pre>
+  </section>
+
+  <section class="panel">
+    <h2>Open on GitHub</h2>
+    <a id="github" target="_blank" rel="noopener noreferrer">View repository ↗</a>
+  </section>
+</main>
+
+<script>
+const params=new URLSearchParams(location.search);
+const owner=params.get("owner");
+const name=params.get("name");
+const title=document.getElementById("title");
+const readme=document.getElementById("readme");
+const description=document.getElementById("description");
+const github=document.getElementById("github");
+const analysis=document.getElementById("analysis");
+
+let repoData=null;
+
+if (!owner || !name || !/^[\w.-]+$/.test(owner) || !/^[\w.-]+$/.test(name)) {
+  title.textContent="Invalid repository";
+  readme.textContent="The repository address is invalid.";
+} else {
+  loadRepo();
+}
+
+async function loadRepo(){
+  const repoURL=`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
+  const readmeURL=repoURL+"/readme";
+
+  try {
+    const [repoResponse,readmeResponse]=await Promise.all([
+      fetch(repoURL,{headers:{"Accept":"application/vnd.github+json"}}),
+      fetch(readmeURL,{headers:{"Accept":"application/vnd.github.raw+json"}})
+    ]);
+
+    if(!repoResponse.ok) throw new Error("Repository not found or GitHub rate limit reached.");
+
+    repoData=await repoResponse.json();
+    title.textContent=repoData.full_name;
+    description.textContent=repoData.description || "No description provided.";
+    github.href=repoData.html_url;
+
+    if(readmeResponse.ok){
+      const text=await readmeResponse.text();
+      readme.textContent=text.slice(0,40000);
+    } else {
+      readme.textContent="No README was found.";
+    }
+  } catch(error) {
+    title.textContent="Unable to load repository";
+    readme.textContent=error.message;
+  }
+}
+
+document.getElementById("analyze").addEventListener("click",async()=>{
+  if(!repoData) return;
+  analysis.textContent="Analyzing repository…";
+
+  try{
+    const prompt=`Analyze this public GitHub repository using only the supplied metadata.
+Explain its purpose, primary language, popularity, possible use cases,
+strengths and limitations. Do not claim to have inspected source code
+that is not provided. Mention what a developer should inspect next.
+
+Repository metadata:
+${JSON.stringify({
+  name:repoData.full_name,
+  description:repoData.description,
+  language:repoData.language,
+  stars:repoData.stargazers_count,
+  forks:repoData.forks_count,
+  openIssues:repoData.open_issues_count,
+  created:repoData.created_at,
+  updated:repoData.updated_at,
+  license:repoData.license?.spdx_id || "Not specified",
+  topics:repoData.topics
+})}
+
+README excerpt:
+${readme.textContent.slice(0,7000)}`;
+
+    const response=await fetch("/api/ai",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({prompt})
+    });
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.error || "AI analysis failed");
+    analysis.textContent=data.answer;
+  }catch(error){
+    analysis.textContent=error.message;
+  }
+});
+</script>
+</body>
+</html>
