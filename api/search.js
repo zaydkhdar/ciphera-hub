@@ -11,30 +11,21 @@ export default async function handler(req, res) {
     const PHRASES = [
         "Optimized for high-throughput environments.", "Zero-configuration deployment architecture.", "Actively maintained with frequent security patches.",
         "Highly modular and easily extensible design.", "Exceptional memory management and low overhead.", "Comprehensive test coverage and CI/CD integration.",
-        "Battle-tested in enterprise production workflows.", "Seamless integration with modern cloud providers.", "Clean, readable syntax following strict best practices.",
-        "Vibrant ecosystem with extensive plugin support.", "Robust error handling and graceful degradation.", "Scalable microservices architecture out of the box.",
-        "Advanced caching mechanisms for rapid data retrieval.", "Strong type safety and compile-time validation.", "Minimal dependencies for lightning-fast builds.",
-        "Cross-platform compatibility with unified APIs.", "Intuitive developer experience and rich documentation.", "Proven track record of stability and uptime.",
-        "Optimized algorithms for complex data structures.", "Elegant abstraction over complex system calls.",
-        "High-performance thread management and concurrency.", "Secure by default with built-in encryption.", "Highly customizable routing and middleware layers.",
-        "Active community with rapid issue resolution.", "Designed for edge computing and distributed networks.", "Streamlined deployment with Docker and Kubernetes."
+        "Battle-tested in enterprise production workflows.", "Seamless integration with modern cloud providers.", "Clean, readable syntax following strict best practices."
     ];
 
     try {
-        // Run all 3 API calls in parallel
         const [ghRes, hnRes, redditRes] = await Promise.allSettled([
             // 1. GitHub
-            fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=5`, {
+            fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=4`, {
                 headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'Ciphera-Hub', 'Authorization': `Bearer ${GITHUB_TOKEN}` }
             }).then(r => r.json()),
             
-            // 2. Hacker News (Algolia API - No Key Needed)
-            fetch(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(query)}&tags=story&hitsPerPage=5`).then(r => r.json()),
+            // 2. Hacker News
+            fetch(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(query)}&tags=story&hitsPerPage=4`).then(r => r.json()),
             
-            // 3. Reddit (Public JSON - Might fail on Vercel without a proxy)
-            fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&limit=5`, {
-                headers: { 'User-Agent': 'Ciphera-Hub/1.0' }
-            }).then(r => r.json()).catch(() => null) // Catch Reddit failure silently
+            // 3. Reddit (Using a public proxy because Vercel IPs are blocked by Reddit)
+            fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.reddit.com/search.json?q=${query}&limit=4`)}`).then(r => r.json()).catch(() => null)
         ]);
 
         let combinedResults = [];
@@ -42,10 +33,6 @@ export default async function handler(req, res) {
         // --- PROCESS GITHUB ---
         if (ghRes.status === 'fulfilled' && ghRes.value.items) {
             ghRes.value.items.forEach(repo => {
-                const daysSinceUpdate = Math.floor((new Date() - new Date(repo.pushed_at || repo.updated_at)) / (1000 * 60 * 60 * 24));
-                let score = Math.log10(repo.stargazers_count + 1) * 15;
-                if (daysSinceUpdate < 90) score += 10;
-                
                 combinedResults.push({
                     source: "🐙 GitHub",
                     name: repo.name,
@@ -54,10 +41,10 @@ export default async function handler(req, res) {
                     stars: repo.stargazers_count,
                     url: repo.html_url,
                     avatar: repo.owner.avatar_url,
-                    ai_score: Math.max(50, Math.min(99, Math.floor(score))),
+                    ai_score: Math.max(50, Math.min(99, Math.floor(Math.log10(repo.stargazers_count + 1) * 20))),
                     ai_reason: PHRASES[Math.floor(Math.random() * PHRASES.length)],
                     meta1: repo.license ? repo.license.spdx_id : "No License",
-                    meta2: daysSinceUpdate === 0 ? "Updated today" : `Updated ${daysSinceUpdate}d ago`
+                    meta2: "Open Source Code"
                 });
             });
         }
@@ -67,46 +54,48 @@ export default async function handler(req, res) {
             hnRes.value.hits.forEach(story => {
                 combinedResults.push({
                     source: "🔶 Hacker News",
-                    name: story.title.substring(0, 30) + "...",
+                    name: story.title.substring(0, 35) + "...",
                     owner: story.author,
-                    description: `Discussion on Hacker News with ${story.num_comments} comments.`,
+                    description: `Discussion with ${story.num_comments} comments.`,
                     stars: story.points,
                     url: story.url || `https://news.ycombinator.com/item?id=${story.objectID}`,
                     avatar: "https://news.ycombinator.com/favicon.ico",
                     ai_score: Math.max(50, Math.min(99, Math.floor(Math.log10(story.points + 1) * 20))),
-                    ai_reason: "High-signal tech discussion with strong community engagement.",
+                    ai_reason: "High-signal tech discussion with strong engagement.",
                     meta1: "Discussion",
-                    meta2: story.created_at ? `Posted ${story.created_at.substring(0, 10)}` : "Recent"
+                    meta2: "Hacker News"
                 });
             });
         }
 
         // --- PROCESS REDDIT ---
-        if (redditRes.status === 'fulfilled' && redditRes.value && redditRes.value.data && redditRes.value.data.children) {
-            redditRes.value.data.children.forEach(post => {
-                const p = post.data;
-                combinedResults.push({
-                    source: "👽 Reddit",
-                    name: p.subreddit_name_prefixed,
-                    owner: p.author,
-                    description: p.title,
-                    stars: p.ups,
-                    url: `https://reddit.com${p.permalink}`,
-                    avatar: "https://www.redditstatic.com/desktop2x/img/favicon/apple-icon-120x120.png",
-                    ai_score: Math.max(50, Math.min(99, Math.floor(Math.log10(p.ups + 1) * 20))),
-                    ai_reason: "Trending discussion in the developer community.",
-                    meta1: p.subreddit_name_prefixed,
-                    meta2: p.upvote_ratio ? `${Math.floor(p.upvote_ratio * 100)}% Upvoted` : "Trending"
-                });
-            });
+        if (redditRes.status === 'fulfilled' && redditRes.value && redditRes.value.contents) {
+            try {
+                const redditData = JSON.parse(redditRes.value.contents);
+                if (redditData.data && redditData.data.children) {
+                    redditData.data.children.forEach(post => {
+                        const p = post.data;
+                        combinedResults.push({
+                            source: "👽 Reddit",
+                            name: p.subreddit_name_prefixed,
+                            owner: p.author,
+                            description: p.title,
+                            stars: p.ups,
+                            url: `https://reddit.com${p.permalink}`,
+                            avatar: "https://www.redditstatic.com/desktop2x/img/favicon/apple-icon-120x120.png",
+                            ai_score: Math.max(50, Math.min(99, Math.floor(Math.log10(p.ups + 1) * 20))),
+                            ai_reason: "Trending community discussion.",
+                            meta1: p.subreddit_name_prefixed,
+                            meta2: "Reddit Thread"
+                        });
+                    });
+                }
+            } catch (e) { console.log("Reddit parse failed"); }
         }
 
-        // Sort everything by Heat Index
         combinedResults.sort((a, b) => b.ai_score - a.ai_score);
-
-        return res.status(200).json(combinedResults.slice(0, 15)); // Return top 15 mixed results
+        return res.status(200).json(combinedResults.slice(0, 12)); 
     } catch (error) {
-        console.error(error);
         return res.status(500).json({ error: error.message });
     }
 }
